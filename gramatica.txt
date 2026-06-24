@@ -1,0 +1,92 @@
+<program> ::= <expression>
+
+<expression> ::=
+    <number>
+  | <string> -> strings
+  | "true" -> bool
+  | "false" -> bool
+  | "null" -> null
+  | "vacio" -> empty
+  | <identifier> <id-suffix> -> producciones que empiezan por identificador
+  | <primitive> "(" <expr-list> ")" -> primitivas
+  | "if" <expression> "then" <expression> "else" <expression> "end" -> if
+  | "func" <identifier> "(" <id-list> ")" "{" <stmt-list> "return" <expression> "}" -> funciones
+  | "(" <expression> ")" -> llamado
+  | "begin" <expression> (";" <expression>)* "end" -> bloque
+  | "var" <identifier> "=" <expression> -> creación de variable
+  | "const" <identifier> "=" <expression> -> creación de constante
+  | "while" <expression> "do" <expression> "done" -> while
+  | "for" <identifier> "in" <expression> "do" <expression> "done" -> for
+  | "[" <expr-list> "]" -> lista
+  | "{" <dict-pairs> "}" -> diccionario
+  | "symbol" <identifier> -> simbolo algebraico
+  | "simplificar" "(" <expression> ")" -> primitiva simplificar
+  | "evaluar" "(" <expression> "," <binding-list> ")" -> primitiva evaluar
+
+<id-suffix> ::=
+    "=" <expression> -> asignacion
+  | "(" <expr-list> ")" -> evaluación
+  | ε -> referencia
+
+<expr-list> ::=
+    ε
+  | <expression> ("," <expression>)*
+
+<id-list> ::=
+    ε
+  | <identifier> ("," <identifier>)*
+
+<stmt-list> ::=
+    ε
+  | <expression> ";" <stmt-list>
+
+<binding-list> ::=
+    ε
+  | <binding> ("," <binding>)*
+<binding> ::= <identifier> "=" <expression>
+
+<dict-pairs> ::=
+    ε
+  | <dict-pair> ("," <dict-pair>)*
+<dict-pair> ::= <identifier> ":" <expression>
+
+<primitive> ::=
+    "+"
+  | "-"
+  | "*"
+  | "/"
+  | "%"
+  | "add1"
+  | "sub1"
+  | "longitud"
+  | "concatenar"
+  | "<"
+  | ">"
+  | "<="
+  | ">="
+  | "=="
+  | "<>"
+  | "and"
+  | "or"
+  | "not"
+  | "vacio?"
+  | "crear-lista"
+  | "lista?"
+  | "cabeza"
+  | "cola"
+  | "append"
+  | "ref-list"
+  | "set-list"
+  | "crear-diccionario"
+  | "diccionario?"
+  | "ref-diccionario"
+  | "set-diccionario"
+  | "claves"
+  | "valores"
+  | "print"
+
+NOTAS
+
+id suffix implementado para evitar problemas de LL(1) con la producción de asignación
+tomar en cuenta el - de resta y para negativos. Probablemente haya que cambiar el simbolo para los negativos. 
+stmt list con ; obligatorio para evitar problemas de LL(1) con las llamadas a funciones y expresiones algebraicas. 
