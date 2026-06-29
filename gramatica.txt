@@ -14,6 +14,7 @@
   | "(" <expression> ")" -> llamado
   | "begin" <expression> (";" <expression>)* "end" -> bloque
   | "var" <identifier> "=" <expression> -> creación de variable
+  | "var*" <identifier> "=" <expression> -> alias de variables (punteros)
   | "const" <identifier> "=" <expression> -> creación de constante
   | "while" <expression> "do" <expression> "done" -> while
   | "for" <identifier> "in" <expression> "do" <expression> "done" -> for
