@@ -1,0 +1,311 @@
+2. que cambia vs el interprete base
+
+- ya no existe let ni letrec
+
+antes todo se hacia con scopes tipo:
+let x = ...
+letrec f = ...
+
+aca no.
+ahora var y const viven como expresiones con side effects.
+
+eso significa:
+cuando hago
+
+var x = 42
+
+no solo devuelve 42, tambien modifica el env actual y deja x guardada.
+
+o sea eval ya no puede devolver solo valor.
+toca devolver algo tipo:
+
+(valor, env_actualizado)
+
+y cada expresion siguiente usa ese env nuevo.
+
+ej:
+
+var x = 42
+var y = x + 1
+
+x tiene que existir cuando y se evalua.
+
+
+---
+
+const
+
+igual que var pero bloqueada para reasignacion.
+
+idea facil:
+agregar otro target tipo const-target y cuando alguien intente setearlo -> error.
+
+
+---
+
+nuevos tipos
+
+antes solo habia nums y funcs.
+ahora toca meter:
+
+bool
+- true / false
+- bool-val
+
+string
+- str-val
+- agregar longitud y concatenar
+
+null
+- null-val
+- default para funciones sin return
+
+listas
+- estructura enlazada
+- head + tail
+- mutable
+
+algo tipo:
+
+(list-val head tail)
+
+y empty-list-val para vacio
+
+diccionarios
+- lista de pares clave -> ref
+- clave string
+- valor mutable
+
+
+---
+
+funciones
+
+antes recursion = letrec
+
+ahora TODA func es recursiva por default.
+
+si hago:
+
+func fib(n) { ... }
+
+fib ya tiene que existir dentro de su propio cuerpo.
+
+solucion:
+usar box.
+
+flujo:
+1. crear caja vacia
+2. crear closure apuntando al env con esa caja
+3. meter closure en la caja
+
+asi fib puede llamarse a si misma.
+
+
+---
+
+parametros
+
+mezcla rara:
+
+por valor:
+- nums
+- strings
+- bools
+- funcs
+
+por referencia:
+- listas
+- diccionarios
+
+basicamente si el arg es mutable, pasar referencia.
+si no, copia.
+
+
+---
+
+control flow nuevo
+
+while
+while cond do body done
+
+loop clasico.
+retorna null.
+
+for
+for x in lista do body done
+
+itera lista.
+cada vuelta x apunta al elemento actual.
+
+switch
+
+switch x {
+ case ...
+ default ...
+}
+
+comparacion estructural.
+agarra el primer match.
+
+print(exp)
+
+imprime y retorna null.
+
+
+---
+
+secuenciacion
+
+importantisimo.
+
+si hago:
+
+var x = 10;
+x = x + 1;
+print(x);
+
+cada expresion tiene que pasarle el env actualizado a la siguiente.
+
+si no haces eso todo explota.
+
+
+==================================================
+3. checklist de cosas a tocar
+==================================================
+
+scanner
+
+agregar:
+- strings
+- floats
+- keywords nuevas
+
+lista:
+var const func return true false null while do done for in switch case default print vacio simplificar evaluar symbol
+
+
+---
+
+grammar
+
+borrar:
+- let
+- letrec
+
+agregar:
+
+var x = ...
+const x = ...
+
+x = ...        ; asignacion normal
+
+func nombre(args) { ... return ... }
+
+nombre(...)
+
+while ...
+
+for ...
+
+switch ...
+
+[ ... ]        ; listas
+
+{ k:v }        ; dicts
+
+true false
+null
+"texto"
+
+print(...)
+
+symbol ...
+simplificar(...)
+evaluar(...)
+
+
+---
+
+expval
+
+meter:
+
+bool-val
+str-val
+null-val
+list-val
+empty-list-val
+dict-val
+sym-val
+sym-expr-val
+
+target:
+agregar const-target
+
+
+---
+
+eval
+
+soportar toda la gramatica nueva
+
+recordar:
+siempre propagar env actualizado
+
+true-value? tambien cambia.
+
+false deberia ser:
+- false
+- 0
+- ""
+- null
+
+
+---
+
+primitivas
+
+nums:
++ - * / % add1 sub1
+
+strings:
+longitud
+concatenar
+
+listas:
+vacio
+vacio?
+crear-lista
+lista?
+cabeza
+cola
+append
+ref-list
+set-list
+
+dicts:
+crear-diccionario
+diccionario?
+ref-diccionario
+set-diccionario
+claves
+valores
+
+bools:
+< > <= >= == <>
+and or not
+
+extra:
+print
+
+
+---
+
+env
+
+la estructura base puede quedarse.
+
+por ahora voy a intentar implementar esto wazaaaa:
+- soportar const-target
+- hacer que var/const devuelvan env nuevo
