@@ -13,11 +13,11 @@
     (cases expression exp
       ;; literales
       (lit-exp (datum) (make-result datum env))
-      (str-exp (s) (make-result s env))
+      (str-exp (s) (make-result (sanitize-string s) env))
       (true-exp () (make-result #t env))
       (false-exp () (make-result #f env))
       (null-exp () (make-result 'null env))
-      (empty-list-exp () (make-result (vector) env))
+      (empty-list-exp () (make-result 'empty_list env))
       
       ;; Declaracion de variables normales y constantes
       (var-decl-exp (id rhs)
@@ -111,15 +111,23 @@
 
       
       ;; declaracion de funciones
+      ;;(func-exp (name params body-exps return-exp)
+      ;;         (let* ((body (if (null? body-exps)
+      ;;                          return-exp 
+      ;;                          (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp))))) 
+      ;;                 (proc (closure params body env))) 
+      ;;            (let ((recursive-env (extend-env (list name) (list (direct-target proc)) env)))
+      ;;              (make-result proc recursive-env)))) 
+      
       (func-exp (name params body-exps return-exp)
                 (let* ((body (if (null? body-exps)
                                 return-exp ;; Si el body era vacio, hacemos al body la expresion del return
                                 (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp))))) ;; Sino, lo hacemos el bloque de expreiones del body y return
-                       (proc (closure params body env))) ;; proc = closure de la funcion creado
-                  (let ((recursive-env (extend-env (list name) (list (direct-target proc)) env))) ;; Creamos el ambiente recursivo para la funcion que contiene el closure de la misma
-                    (make-result proc recursive-env)))) ;; Devolvemos el closure de la funcion y el ambiente extendido creado que lo contiene a si mismo
-      
-      ;; Siento que esto falla... No le estamos pasando el ambiente recursivo al closure / proc :c
+                      (vec (make-vector 1)) 
+                      (recursive-env (extended-env-record (list name) vec env)) ;; creamos el ambiente recursivo antes del closure para que la funcion se pueda encontrar a si misma si usa recursion
+                      (proc (closure params body recursive-env))) ;; proc = closure de la funcion creado
+                  (vector-set! vec 0 (direct-target proc)) ;; modificamos el vector del ambiente con el procedimiento ya hecho
+                  (make-result proc recursive-env))) ;; Devolvemos el closure de la funcion y el ambiente extendido creado que lo contiene a si mismo
 
       ; Estructuras de ciclos
 
@@ -140,48 +148,44 @@
                   ))
       
       ;; for de la forma for id in list do ... done
-      ;; esto está preimplementado para suponer que la lista es un vector. Hay que implementarlo despues XD
       (for-exp (id list-exp body-exp)
-
-               (let ((list-res (eval-expression list-exp env)))
-                 (let ((list-val (result-val list-res)) (env1 (result-env list-res)))
-
-                   (if (vector? list-val)
-                       ;; si es un vector (lista en nuestro interprete)
-                       (let loop ((i 0) (env-curr env1))
-                         (if (>= i (vector-length list-val))
-
-                             (make-result 'null env-curr) ;; Si i llega al limite de la lista, terminamos el loop
-
-                             ;; si no
-                             (let ((item (vector-ref list-val i))) ;; Obtenemos el valor de la posicion "i" en la lista a iterar
-                               (let ((body-env (extend-env (list id) (list (direct-target item)) env-curr))) ;; nuevo ambiente con "id" siendo el item de la lista y extendido del actual
-                                 (let ((body-res (eval-expression body-exp body-env))) ;; Evaluamos el body del for con las expresiones que hayan en él y el ambiente creado anteriormente
-                                   (loop (+ i 1) (result-env body-res))))))) ;; Hacemos el loop de nuevo pero con i+1
-
-                       ;; Si la expresion por la que iteramos no era una lista, sacamos error
-                       (eopl:error 'eval-expression "for expects a list/vector, got ~s" list-val)))))
+         (let ((list-res (eval-expression list-exp env)))
+           (let ((list-val (result-val list-res)) (env1 (result-env list-res)))
+             (if (or (pair? list-val) (eq? list-val 'empty_list))
+                 (let loop ((lst list-val) (env-curr env1))
+                   (if (eq? lst 'empty_list)
+                       (make-result 'null env-curr)
+                       (let ((item (car lst)))
+                         (let ((body-env (extend-env (list id) (list (direct-target item)) env-curr)))
+                           (let ((body-res (eval-expression body-exp body-env)))
+                             (loop (cdr lst) (result-env body-res)))))))
+                 (eopl:error 'eval-expression "for expects a list, got ~s" list-val)))))
       
-      ;; [ expr1, expr2, ... ]
+      ;; evaluacion de expresiones en una lista que devuelve la lista con los resultados evaluados y el nuevo ambiente despues de haberlo hecho
       (list-exp (exps)
-                (let loop ((es exps) (acc '()) (env-curr env))
-                  (if (null? es)
-                      (make-result (list->vector (reverse acc)) env-curr)
-                      (let ((e-res (eval-expression (car es) env-curr)))
-                        (loop (cdr es) (cons (result-val e-res) acc) (result-env e-res))))))
+          (let loop ((es (reverse exps)) (acc 'empty_list) (env-curr env))
+            (if (null? es)
+                (make-result acc env-curr)
+                (let ((e-res (eval-expression (car es) env-curr)))
+                  (loop (cdr es) (cons (result-val e-res) acc) (result-env e-res))))))
       
-      ;; { id: expr, ... }
-      ;; Aun no se me ha ocurrido como hacer esto XD
+      ;; evaluacion de una expresion de diccionario que usa como auxiliar a eval-dict-pair para cada pareja :). Hace que la estructura de diccionario tenga como identificador 'dict al inicio.
       (dict-exp (pairs)
-        make-result (vector) env)
-      )
+        (let loop ((ps pairs) (acc '()) (env-curr env))
+          (if (null? ps)
+              (make-result (cons 'dict (reverse acc)) env-curr)
+              (let ((pair-res (eval-dict-pair (car ps) env-curr)))
+                (loop (cdr ps) (cons (result-val pair-res) acc) (result-env pair-res))))))
       
+      ;; por si la persona intenta hacer algo como "ref x" o algo del estilo por fuera de un call a funcion :x
+      (ref-exp (id)
+               (eopl:error 'eval-expression
+                           "ref x\' Only valid as an argument in function calls, not as an independent expression: ~s"
+                           id))
+
       ;; todo el tema de manejo algebraico. No está terminado, asi que lo deje como dummies por ahora xd
       (symbol-exp (id)
                   (make-result id env))
-      
-      (ref-exp (id)
-               (eopl:error 'eval-expression "ref expression is only valid as a function argument: ~s" id))
       
       (simplify-exp (expr)
                     (let ((res (eval-expression expr env)))
@@ -238,6 +242,8 @@
 
 ;; eval-rands 
 ;; helper para evaluar todos los operandos de una llamada a funcion, devolviendo la lista de valores y el ambiente final.
+;; OJO: cada argumento se envuelve en un target en eval-rand (direct-target para valores normales
+;; y indirect-target para referencias). Esto es el invariante que apply-procedure espera.
 (define eval-rands
   (lambda (rands env)
     (let loop ((rs rands) (acc '()) (env env))
@@ -253,7 +259,7 @@
     (cases dict-pair pair
       (pair-exp (key-id value-exp)
                 (let ((val-res (eval-expression value-exp env)))
-                  (make-result (cons key-id (result-val val-res)) (result-env val-res)))))))
+                  (make-result (cons (symbol->string key-id) (result-val val-res)) (result-env val-res)))))))
 
 ;; Evaluador de operandos para primitivas (no hay reference wrapping)
 (define eval-primapp-exp-rands
@@ -265,19 +271,27 @@
             (loop (cdr rs) (cons (result-val res) acc) (result-env res)))))))
 
 ;; apply-procedure
-;; ejecuta el body del closure obteniendo los argumentos del ambiente donde fue llamado
+;; ejecuta el body del closure obteniendo los argumentos del ambiente donde fue llamado.
+;; OJO: args deben ser targets (direct-target / indirect-target), tal como produce eval-rands.
+;; Devolvemos el ambiente a nivel del caller. Para entrar mas en detalle mirar el test case de referencias #3
 (define apply-procedure
   (lambda (proc args caller-env)
     (cases procval proc
       (closure (ids body env)
-               (eval-expression body (extend-env ids args env))))))
-
+               (let ((res (eval-expression body (extend-env ids args env))))
+                 (make-result (result-val res) caller-env))))))  
 ;; verdadero o falso pa
 (define true-value?
   (lambda (x)
     (not (or (eq? x 'null) (equal? x 0) (equal? x "") (equal? x #f)))))
 
-;; Export para los demas modulos (el main solamente creo xd)
+;; auxiliar para sanitizar los strings para evitarnos el problema de tener "\"string\""
+;; lo que hace es borrar el primer y ultimo caracter del string :)
+(define sanitize-string
+  (lambda (s)
+    (substring s 1 (- (string-length s) 1))))
+
+;; Export para los demas modulos (el main y test solamente)
 (provide
     (all-defined-out)
     ; Aqui los excepts

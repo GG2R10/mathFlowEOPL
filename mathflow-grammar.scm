@@ -16,7 +16,7 @@
     (number
      (digit (arbno digit)) number)
     (number
-     ("-" digit (arbno digit)) number))) ; A anotar, usar el simbolo de negativos como el mismo de la resta puede generar problemas con el interpretador despues.
+     ("-" digit (arbno digit)) number))) ; OJOOO: el signo negativo se reconoce en el scanner, lo que puede generar ambiguedades con el operador de resta en algunos contextos.
 
 ;; Especificacion gramatica
 ;; Nos dice como se van a combinar los tokens para formar expresiones y programas validos.
@@ -29,8 +29,9 @@
 ;; - binding/dict-pair utilizan no terminales separados en lugar de patrones en línea (limitación de SLLGEN con separated-list).
 
 (define grammar-simple-interpreter
-  '((program (expression) a-program)
-    
+
+    '((program (expression) a-program)
+
     ;; literales
     (expression (number) lit-exp)
     (expression (string) str-exp)

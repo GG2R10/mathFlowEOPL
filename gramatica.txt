@@ -1,55 +1,87 @@
 <program> ::= <expression>
 
+
 <expression> ::=
-    <number>
-  | <string> -> strings
-  | "true" -> bool
-  | "false" -> bool
-  | "null" -> null
-  | "vacio" -> empty
-  | <identifier> <id-suffix> -> producciones que empiezan por identificador
-  | <primitive> "(" <expr-list> ")" -> primitivas
-  | "if" <expression> "then" <expression> "else" <expression> "end" -> if
-  | "func" <identifier> "(" <id-list> ")" "{" <stmt-list> "return" <expression> "}" -> funciones
-  | "(" <expression> ")" -> llamado
-  | "begin" <expression> (";" <expression>)* "end" -> bloque
-  | "var" <identifier> "=" <expression> -> creación de variable
-  | "var*" <identifier> "=" <expression> -> alias de variables (punteros)
-  | "const" <identifier> "=" <expression> -> creación de constante
-  | "while" <expression> "do" <expression> "done" -> while
-  | "for" <identifier> "in" <expression> "do" <expression> "done" -> for
-  | "[" <expr-list> "]" -> lista
-  | "{" <dict-pairs> "}" -> diccionario
-  | "symbol" <identifier> -> simbolo algebraico
-  | "simplificar" "(" <expression> ")" -> primitiva simplificar
-  | "evaluar" "(" <expression> "," <binding-list> ")" -> primitiva evaluar
+    <number> -> lit-exp
+  | <string> -> str-exp
+  | "true" -> true-exp
+  | "false" -> false-exp
+  | "null" -> null-exp
+  | "vacio" -> empty-list-exp
+
+  | <identifier> <id-suffix> -> id-dispatch
+
+  | <primitive> "(" <expr-list> ")" -> primapp-exp
+
+  | "if" <expression> "then" <expression> "else" <expression> "end" -> if-exp
+
+  | "begin" <expression> (";" <expression>)* "end" -> begin-exp
+
+  | "func" <identifier> "(" <id-list> ")" "{"
+        <stmt-list>
+        "return" <expression>
+    "}" -> func-exp
+
+  | "(" <expression> ")" -> group-exp
+
+  | "ref" <identifier> -> ref-exp
+
+  | "var*" <identifier> "=" <identifier> -> var-ref-decl-exp
+  | "var" <identifier> "=" <expression> -> var-decl-exp
+  | "const" <identifier> "=" <expression> -> const-decl-exp
+
+  | "while" <expression> "do" <expression> "done" -> while-exp
+
+  | "for" <identifier> "in" <expression> "do" <expression> "done" -> for-exp
+
+  | "[" <expr-list> "]" -> list-exp
+
+  | "{" <dict-pair-list> "}" -> dict-exp
+
+  | "symbol" <identifier> -> symbol-exp
+
+  | "simplificar" "(" <expression> ")" -> simplify-exp
+
+  | "evaluar" "(" <expression> "," <binding-list> ")" -> evaluate-exp
+
 
 <id-suffix> ::=
-    "=" <expression> -> asignacion
-  | "(" <expr-list> ")" -> evaluación
-  | ε -> referencia
+    "=" <expression> -> assign-suffix
+  | "(" <expr-list> ")" -> call-suffix
+  | e -> empty-suffix
+
 
 <expr-list> ::=
-    ε
+    e
   | <expression> ("," <expression>)*
 
+
 <id-list> ::=
-    ε
+    e
   | <identifier> ("," <identifier>)*
 
+
 <stmt-list> ::=
-    ε
+    e
   | <expression> ";" <stmt-list>
 
-<binding-list> ::=
-    ε
-  | <binding> ("," <binding>)*
-<binding> ::= <identifier> "=" <expression>
 
-<dict-pairs> ::=
-    ε
+<binding-list> ::=
+    <binding> ("," <binding>)*
+
+
+<binding> ::=
+    <identifier> "=" <expression> -> binding-exp
+
+
+<dict-pair-list> ::=
+    e
   | <dict-pair> ("," <dict-pair>)*
-<dict-pair> ::= <identifier> ":" <expression>
+
+
+<dict-pair> ::=
+    <identifier> ":" <expression> -> pair-exp
+
 
 <primitive> ::=
     "+"
@@ -59,17 +91,21 @@
   | "%"
   | "add1"
   | "sub1"
+
   | "longitud"
   | "concatenar"
+
   | "<"
   | ">"
   | "<="
   | ">="
   | "=="
   | "<>"
+
   | "and"
   | "or"
   | "not"
+
   | "vacio?"
   | "crear-lista"
   | "lista?"
@@ -78,16 +114,152 @@
   | "append"
   | "ref-list"
   | "set-list"
+
   | "crear-diccionario"
   | "diccionario?"
   | "ref-diccionario"
   | "set-diccionario"
   | "claves"
   | "valores"
+
   | "print"
 
 NOTAS
 
 id suffix implementado para evitar problemas de LL(1) con la producción de asignación
-tomar en cuenta el - de resta y para negativos. Probablemente haya que cambiar el simbolo para los negativos. 
+
 stmt list con ; obligatorio para evitar problemas de LL(1) con las llamadas a funciones y expresiones algebraicas. 
+
+Los strings se reconocen en el scanner, pero hay que sanearlos ya que terminan con la forma "\"string\"" con la funcion sanitize-string.
+
+Intenté implementar las listas y diccionarios con vectores primero debido a las especificaciones que pedia el proyecto, pero al revisar como realmente estaban escritos vi que las funciones set realmente devolvian una nueva lista o diccionario. O sea: 
+
+set-list(list, index, value) no cambia list, sino que devuelve una copia de list con value en la posicion index, por ende tenemos que hacer
+
+var l = set-list(l, ..., ...)
+
+Al inicio implementé listas y diccionarios con identificadores en listas para reconocerse, siendo fiel al hecho de que las primitivas deberian de ser "cosas usadas del lenguaje original", pero despues me di cuenta de que era mucho mas organizado tenerlas como sus propios datatype asi que ahora estan implementadas así. 
+
+Todo está hecho por notacion prefija. Me parece complejo realizar notacion infija para las primitivas y el profesor nos permitio dejarlo por notacion infija :). 
+
+Para implementar las constantes ahora los ambientes tienen un nuevo tipo de target que cuando se intenta reemplazar devuelve error.
+
+Las funciones para poder ser recursivas hacen un truco: 
+
+Creamos un ambiente con el nombre de la funcion, un vector tamaño 1 y el ambiente anterior
+creamos el procedure / closure de la funcion con ese nuevo ambiente
+luego, cambiamos el vector de variables del nuevo ambiente para ser igual al procedure previamente creado: 
+
+(vec (make-vector 1)) 
+(recursive-env (extended-env-record (list name) vec env))
+(proc (closure params body recursive-env)))
+
+Esto nos asegura que la funcion podrá usarse a si misma. Es un truco algo raro pero funciona.
+
+En las especificaciones pedian paso de variables normales por valor y de dinamicas por referencia, pero yo he decidido implementar una funcionalidad "ref" que permite pasarle a las funciones referencias (indirect targets con referencias a direct targets) para que la persona que escriba el codigo tenga total control de cuando quiere que se pase por valor y referencia. Esto funciona naturalmente para cualquier tipo de estructura o variable (strings, numeros, listas, diccionarios, y cualquier otra que se quisiera crear)
+
+Podemos crear "aliases" o punteros por medio de una produccion var*. Lo hice ya que noté que realmente teniamos indirect-targets pero solamente se usaban para las funciones. Los punteros pueden apuntar a otros punteros porque en nuestro lenguaje siempre alguno de los punteros va a apuntar a un direct-target, por lo que no tenemos referencias circulares ni siquiera aunque intentaramos de hacer cosas raras con asignaciones. Ademas, para optimizar rutas la funcion de creacion de punteros se salta punteros intermedios. Por ejemplo: 
+
+var a = 1
+var* x = a -> apunta a "a"
+var* y = x -> ve que "x" es un indirect-target de por sí, entonces hace un bypass y se vuelve un indirect-target a la referencia que contiene "x" y no a x directamente. Basicamente, tambien termina apuntando a "a" directamente
+
+Los negativos están especificados en la gramatica y no fallan gracias a que usamos todo con notacion prefija wiiii.
+
+EJEMPLOS DE LA GRAMATICA
+
+no los habia querido poner aun porque sabia que iba a tener que realizar cambios, pero no han sido tantos. Por ahora el lenguaje funciona de esta manera:
+
+"begin
+
+  var x = 10;
+  const y = 20;
+  print(+(x,y));
+
+  x = 15;
+  print(x);
+
+  var* alias = x;
+  alias = 99;
+  print(x);
+
+  var saludo = \"hola\";
+  print(longitud(saludo));
+  print(concatenar(saludo, \" mundo\"));
+
+  if >(x, 50) then
+    print(\"x es grande\")
+  else
+    print(\"x es pequeno\")
+  end;
+
+  print(and(true, true));
+  print(or(false, true));
+  print(not(false));
+
+  var lista =;
+  print(cabeza(lista));
+
+  lista = set-list(lista, 1, 99);
+  print(ref-list(lista, 1));
+
+  lista = append(lista, 42);
+  print(ref-list(lista, 3));
+
+  var suma = 0;
+  for item in lista do
+    suma = +(suma, item)
+  done;
+  print(suma);
+
+  var persona = {
+    nombre: \"Juan\",
+    edad: 25
+  };
+
+  print(ref-diccionario(persona, \"nombre\"));
+
+  persona = set-diccionario(persona, \"edad\", 30);
+  print(ref-diccionario(persona, \"edad\"));
+
+  var i = 0;
+  var acc = 0;
+
+  while <(i, 5) do
+    begin
+      acc = +(acc, i);
+      i = add1(i)
+    end
+  done;
+
+  print(acc);
+
+  func factorial(n) {
+    return if ==(n, 0)
+      then 1
+      else *(n, factorial(-(n,1)))
+    end
+  };
+
+  print(factorial(5));
+
+  func duplicar(n) {
+    return n = *(n,2)
+  };
+
+  var z = 8;
+  duplicar(ref z);
+  print(z);
+
+  var sx = symbol x;
+  print(sx);
+
+  var nada = null;
+  var vac = vacio;
+
+  print(nada);
+  print(vacio?(vac));
+
+  \"ok\"
+
+end"
