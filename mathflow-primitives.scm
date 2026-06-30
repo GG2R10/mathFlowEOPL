@@ -5,6 +5,8 @@
 
 ; primitivas
 
+; auxiliar para la funcion auxliar de abajo.
+; devuelve false si todos los elementos son algo diferente a expresiones simbolicas. 
 (define symbolic-args?
   (lambda (args)
     (let loop ((xs args))
@@ -13,6 +15,7 @@
           (or (symbolic-expval? (car xs))
               (loop (cdr xs)))))))
 
+; usado para evitar, como se pone en las especificaciones del proyecto, que se hagan operaciones booleanas o comparativas con expresiones simbolicas.
 (define ensure-non-symbolic-args
   (lambda (who args)
     (if (symbolic-args? args)
@@ -21,10 +24,13 @@
                     args)
         #t)))
 
+; si es un expval simbolico usamos la funcion auxiliar que los convierte a string. Si es cualquier otro valor usamos display normal.
 (define display-expval
   (lambda (v)
     (if (symbolic-expval? v)
+
         (display (expval->symbolic-string v))
+        ; else
         (display v))))
 
 (define apply-primitive

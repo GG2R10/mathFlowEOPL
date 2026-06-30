@@ -11,7 +11,7 @@ begin
   const b = 20;
   +(a, b)
 end
-"))       
+")) (newline)    
 ;; => 30
 
 ;; reasignacion de variable
@@ -21,7 +21,7 @@ begin
   n = 99;
   n
 end
-"))       
+")) (newline)      
 ;; => 99
 
 ;; Constante no modificable (debe lanzar error)
@@ -45,7 +45,7 @@ begin
 
   factorial(5)
 end
-"))       
+")) (newline)      
 ;; => 120
 
 ;; Fibonacci
@@ -56,7 +56,7 @@ begin
   };
   fib(10)
 end
-"))       
+")) (newline)      
 ;; => 55
 
 ;; funcion sin return => devuelve null
@@ -68,7 +68,7 @@ begin
   };
   sinReturn()
 end
-"))
+")) (newline)
 ;; => null
 
 (display "=== Referencias ===")
@@ -82,7 +82,7 @@ begin
   y = 99;
   x
 end
-"))       
+")) (newline)       
 ;; => 99
 
 ;; cadena de punteros
@@ -94,7 +94,7 @@ begin
   z = 42;
   x
 end
-"))       
+")) (newline)      
 ;; => 42
 
 ;; paso por referencia a funcion 
@@ -107,7 +107,7 @@ begin
   duplicar(ref v);
   v
 end
-"))       
+")) (newline)      
 
 ;; Esto fue super interesante de debuguear. En nuestro codigo original de apply-procedure al final de la aplicación
 ;; devolviamos el ambiente extendido de la función, por lo que al intentar buscar v el apply-env claramente no lo encontraba. 
@@ -125,7 +125,7 @@ begin
   var L = [10, 20, 30];
   cabeza(L)
 end
-"))       
+")) (newline)      
 ;; => 10
 
 ;; mutacion de lista
@@ -135,7 +135,7 @@ begin
   L = set-list(L, 1, 99);
   ref-list(L, 1)
 end
-"))       
+")) (newline)      
 ;; => 99
 
 ;; for sobre una lista
@@ -148,7 +148,7 @@ begin
   done;
   suma
 end
-"))       
+")) (newline)      
 ;; => 15
 
 (display "=== Diccionarios ===")
@@ -161,7 +161,7 @@ begin
   var d = {nombre: \"Juan\", \"edad\": 25};
   ref-diccionario(d, nombre)
 end
-"))       
+")) (newline)       
 ;; => 25
 
 (display "=== While ===")
@@ -180,7 +180,7 @@ begin
   done;
   acc
 end
-"))       
+")) (newline)       
 ;; => 45
 
 (display "=== MathFlow (expresiones simbolicas y simplificar / evaluar) ===")
@@ -193,7 +193,7 @@ end
 ;  func simbolito() {print(\"Hola desde la funcion x\")}
 ; end"))  
 
-(display (run "
+(run "
 begin
   symbol s;
   var x = 10;
@@ -203,100 +203,100 @@ begin
 
   print(exp2)
 end
-")) ; => +(s,25)
+") ; => +(s,25)
 
 (display "=== Simplificar ===")
 (newline)
 
 ;; +(-(s,2), 5) => +(s,3)
-(display (run "
+(run "
 begin
   symbol s;
   var e1 = simplificar(+(-(s, 2), 5));
   print(e1)
 end
-"))
+")
 
 ;; -(s,s) => 0
-(display (run "
+(run "
 begin
   symbol s;
   var e2 = simplificar(-(s, s));
   print(e2)
 end
-"))
+")
 
 ;; /(*(s,4),4) => s
-(display (run "
+(run "
 begin
   symbol s;
   var e3 = simplificar(/(*(s, 4), 4));
   print(e3)
 end
-"))
+")
 
 ;; *(s,0) => 0
-(display (run "
+(run "
 begin
   symbol s;
   var e4 = simplificar(*(s, 0));
   print(e4)
 end
-"))
+")
 
 ;; *(s,1) => s
-(display (run "
+(run "
 begin
   symbol s;
   var e5 = simplificar(*(s, 1));
   print(e5)
 end
-"))
+")
 
 ;; +(s,0) => s
-(display (run "
+(run "
 begin
   symbol s;
   var e6 = simplificar(+(s, 0));
   print(e6)
 end
-"))
+")
 
 ;; *(*(s,3),2) => *(s,6)
-(display (run "
+(run "
 begin
   symbol s;
   var e7 = simplificar(*(*(s, 3), 2));
   print(e7)
 end
-"))
+")
 
 ;; +(+(3,s),4) => +(s,7)
-(display (run "
+(run "
 begin
   symbol s;
   var e8 = simplificar(+(+(3,s), 4));
   print(e8)
 end
-"))
+")
 
 ;; -(+(s,5),5) => s
-(display (run "
+(run "
 begin
   symbol s;
   var e9 = simplificar(-(+(s, 5), 5));
   print(e9)
 end
-"))
+")
 
 ;; /(*(s,4),2) => *(s,2)
-(display (run "
+(run "
 begin
   symbol s;
   var e9 = simplificar(/(*(s,4),2));
   print(e9)
 end
-"))
+")
 
 (display "=== Evaluar ===")
 (newline)
@@ -306,7 +306,7 @@ begin
   symbol s;
   evaluar(+(s,2), s=4)
 end
-")) ; => 6
+")) (newline) ; => 6
 
 (display (run "
 begin
@@ -314,9 +314,9 @@ begin
   symbol t;
   evaluar(+(s,*(t,2)), s=2)
 end
-")) ; => +(2,*(y,2))
+")) (newline) ; => +(2,*(y,2))
 
-(display (run "
+(run "
 begin
   symbol s;
   symbol t;
@@ -324,17 +324,17 @@ begin
   var* y = x;
   print(y)
 end
-")) ; => +(2,*(y,2))
+") ; => +(2,*(y,2))
 
 (display "=== Casos Borde ===")
 (newline)
 
 ;; numero negativo
-(display (run "-5"))       
+(display (run "-5")) (newline)       
 ;; => -5
 
 ;; resta con negativo (que miedo)
-(display (run "-(10, -3)"))       
+(display (run "-(10, -3)")) (newline)      
 ;; => 13
 
 ;; true-value? con distintos falsy values
@@ -345,7 +345,7 @@ begin
   var r3 = if null then 1 else 2 end;
   +(+(r1, r2), r3)
 end
-"))       
+")) (newline)       
 ;; => 6
 
 ;; diccionario vacio y lista vacia se deberian reconocer distintos 
@@ -354,7 +354,7 @@ begin
   var d = {};
   lista?(d)
 end
-"))       
+")) (newline)      
 ;; => false
 
 (display "=== Tests Adicionales ===")
@@ -374,7 +374,7 @@ begin
     300
   end 
 end
-"))       
+")) (newline)      
 ;; => 100
 
 ;; funciones de orden superior
@@ -390,7 +390,7 @@ begin
   
   aplicar(cuadrado, 5)
 end
-"))    
+")) (newline)   
 
 ;; => 25
 
@@ -404,4 +404,4 @@ begin
   var lista = [\"tutaina\", 2, y];
   ref-list(lista, 1)
 end
-")) 
+")) (newline)
