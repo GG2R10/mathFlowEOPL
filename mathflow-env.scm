@@ -100,6 +100,40 @@
                                  (a-ref pos vals)
                                  (apply-env-ref env sym)))))))
 
+;; predicados de bindings para validaciones semanticas (p.ej. symbol vs var/const)
+(define target->expval
+  (lambda (t)
+    (cases target t
+      (direct-target (v) v)
+      (const-target (v) v)
+      (indirect-target (r) (deref r)))))
+
+(define env-has-binding?
+  (lambda (env sym)
+    (cases environment env
+      (empty-env-record () #f)
+      (extended-env-record (syms vals parent)
+        (or (let loop ((ss syms) (idx 0))
+              (cond
+                ((null? ss) #f)
+                ((eqv? (car ss) sym) #t)
+                (else (loop (cdr ss) (+ idx 1)))))
+            (env-has-binding? parent sym))))))
+
+(define env-has-symbolic-binding?
+  (lambda (env sym)
+    (cases environment env
+      (empty-env-record () #f)
+      (extended-env-record (syms vals parent)
+        (or (let loop ((ss syms) (idx 0))
+              (cond
+                ((null? ss) #f)
+                ((eqv? (car ss) sym)
+                 (or (symval? (target->expval (vector-ref vals idx)))
+                     (loop (cdr ss) (+ idx 1))))
+                (else (loop (cdr ss) (+ idx 1)))))
+            (env-has-symbolic-binding? parent sym))))))
+
 ;; mejoramos las 3 funciones de rib-find-position a solo list-index, que es usada para buscar la posicion del simbolo en la lista de simbolos en apply-env-ref
 (define list-index
   (lambda (pred ls)

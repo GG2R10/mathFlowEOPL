@@ -9,10 +9,12 @@
   (or (number? x)
       (boolean? x)
       (string? x)
-      (symbol? x)         ; null represented as 'null
+      (symbol? x)         ; null representado como 'null
       (procval? x)
-      (listval? x)        ; our list datatype
-      (dictval? x)))      ; our dict datatype
+      (symval? x)         ; simbolos algebraicos
+      (symexpr? x)        ; expresiones algebraicas
+      (listval? x)        ; datatype de listas
+      (dictval? x)))      ; datatype para diccionarios
 
 ;; claves permitidas en diccionarios ya evaluados
 (define (dict-key-value? x)
@@ -68,6 +70,17 @@
    (body expression?)
    (env environment?)))
 
+;; symval: variable matematica declarada con `symbol x`
+(define-datatype symval symval?
+  (math-symbol (id symbol?)))
+
+;; symexpr: expresion algebraica simbolica construida por primitivas aritmeticas
+(define-datatype symexpr symexpr?
+  (symbolic-exp
+   (op symbol?)
+   (lhs expval?)
+   (rhs expval?)))
+
 ;; listval: representacion de listas del lenguaje (no usar pair? ni list? de racket)
 (define-datatype listval listval?
   (empty-list-val)
@@ -81,6 +94,36 @@
 (define make-result (lambda (v e) (cons v e)))
 (define result-val car)
 (define result-env cdr)
+
+;; utilidades para algebra simbolica
+(define (symbolic-expval? v)
+  (or (symval? v)
+      (symexpr? v)))
+
+(define expval->symbolic-string
+  (lambda (v)
+    (cond
+      ((symval? v)
+       (cases symval v
+         (math-symbol (id) (symbol->string id))))
+      ((symexpr? v)
+       (cases symexpr v
+         (symbolic-exp (op lhs rhs)
+           (string-append
+            (symbol->string op)
+            "("
+            (expval->symbolic-string lhs)
+            ","
+            (expval->symbolic-string rhs)
+            ")"))))
+      ((number? v) (number->string v))
+      ((symbol? v) (symbol->string v))
+      ((boolean? v) (if v "true" "false"))
+      ((string? v) (string-append "\"" v "\""))
+      (else
+       (eopl:error 'expval->symbolic-string
+                   "Cannot stringify non-supported symbolic operand: ~s"
+                   v)))))
 
 ;; por si acaso
 (define scheme-value? (lambda (v) #t))

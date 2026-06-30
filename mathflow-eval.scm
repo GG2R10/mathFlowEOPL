@@ -2,6 +2,7 @@
 (require "mathflow-types.scm")
 (require "mathflow-env.scm")
 (require "mathflow-primitives.scm")
+(require "mathflow-algebraic.scm")
 (require "mathflow-grammar.scm")
 
 ; El evaluador. Una de las partes mas interesantes del interprete junto con el manejo de ambientes. Aquí definimos el comportamiento de cada una de las expresiones del lenguaje, y como se van a evaluar. La evaluacion es recursiva, y se hace en el contexto de un ambiente que puede ser modificado por las declaraciones de variables y constantes.
@@ -23,15 +24,23 @@
       (var-decl-exp (id rhs)
                     (let ((res (eval-expression rhs env))) ; res = resultado y ambiente resultante de evaluar lado derecho
                       (let ((v (result-val res)) (env2 (result-env res))) ; v = resultado, env2 = ambiente resultante
-                        (make-result 
-                          v 
-                          (extend-env (list id) (list (direct-target v)) env2)
-                        )))) ; devolvemos el valor y como ambiente una extension del actual con el nuevo identificador y valor.     
+                        (if (env-has-symbolic-binding? env2 id)
+                            (eopl:error 'eval-expression
+                                        "Cannot declare variable ~s: name is already used by a mathematical symbol"
+                                        id)
+                            (make-result 
+                              v 
+                              (extend-env (list id) (list (direct-target v)) env2)
+                            ))))) ; devolvemos el valor y como ambiente una extension del actual con el nuevo identificador y valor.     
       
       (const-decl-exp (id rhs)
                       (let ((res (eval-expression rhs env)))
                         (let ((v (result-val res)) (env2 (result-env res)))
-                          (make-result v (extend-env (list id) (list (const-target v)) env2)))))
+                          (if (env-has-symbolic-binding? env2 id)
+                              (eopl:error 'eval-expression
+                                          "Cannot declare constant ~s: name is already used by a mathematical symbol"
+                                          id)
+                              (make-result v (extend-env (list id) (list (const-target v)) env2))))))
   
       ;; Manejo de creacion de punteros / aliases (var* y = x)
       (var-ref-decl-exp (id rhs-id)
@@ -59,8 +68,13 @@
                      (assign-suffix (rhs)
                                     (let ((res (eval-expression rhs env))) ;; evaluamos el lado derecho de la asignacion
                                       (let ((v (result-val res)) (env2 (result-env res))) ;; v = resultado, env2 = ambiente modificado
-                                        (setref! (apply-env-ref env2 id) v) ;; modificamos la referencia del identificador en el ambiente con el nuevo valor
-                                        (make-result 1 env2)))) ;; una asignacion exitosa devuelve 1 y el ambiente modificado
+                                        (if (symval? (apply-env env2 id))
+                                            (eopl:error 'eval-expression
+                                                        "Cannot assign to mathematical symbol ~s"
+                                                        id)
+                                            (begin
+                                              (setref! (apply-env-ref env2 id) v) ;; modificamos la referencia del identificador en el ambiente con el nuevo valor
+                                              (make-result 1 env2)))))) ;; una asignacion exitosa devuelve 1 y el ambiente modificado
 
                      (call-suffix (rands)
                                   (let ((proc (apply-env env id)))
@@ -111,20 +125,24 @@
       
       ;; Funciones. Basicamente, crea un body que luego es wrappeado en un closure.
       (func-exp (name params body-exps f-return)
-                (let* ((body (cases func-return f-return
-                               (func-return-exp (return-exp) ;; Si tenemos un return explicito, lo juntamos como la ultima instruccion en el body que es simplemente una begin-exp
-                                 (if (null? body-exps)
-                                     return-exp
-                                     (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp)))))
-                               (empty-return-exp () ;; Juntamos una null-exp al final del body si no habia return
-                                 (if (null? body-exps)
-                                     (null-exp)
-                                     (begin-exp (car body-exps) (append (cdr body-exps) (list (null-exp))))))))
-                      (vec (make-vector 1)) 
-                      (recursive-env (extended-env-record (list name) vec env)) ;; creamos el ambiente recursivo antes del closure para que la funcion se pueda encontrar a si misma si usa recursion
-                      (proc (closure params body recursive-env))) ;; proc = closure de la funcion creado
-                  (vector-set! vec 0 (direct-target proc)) ;; modificamos el vector del ambiente con el procedimiento ya hecho
-                  (make-result proc recursive-env))) ;; Devolvemos el closure de la funcion y el ambiente extendido creado que lo contiene a si mismo
+                (if (env-has-symbolic-binding? env name)
+                    (eopl:error 'eval-expression
+                                "Cannot declare function ~s: name is already used by a mathematical symbol"
+                                name)
+                    (let* ((body (cases func-return f-return
+                                   (func-return-exp (return-exp) ;; Si tenemos un return explicito, lo juntamos como la ultima instruccion en el body que es simplemente una begin-exp
+                                     (if (null? body-exps)
+                                         return-exp
+                                         (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp)))))
+                                   (empty-return-exp () ;; Juntamos una null-exp al final del body si no habia return
+                                     (if (null? body-exps)
+                                         (null-exp)
+                                         (begin-exp (car body-exps) (append (cdr body-exps) (list (null-exp))))))))
+                          (vec (make-vector 1)) 
+                          (recursive-env (extended-env-record (list name) vec env)) ;; creamos el ambiente recursivo antes del closure para que la funcion se pueda encontrar a si misma si usa recursion
+                          (proc (closure params body recursive-env))) ;; proc = closure de la funcion creado
+                      (vector-set! vec 0 (direct-target proc)) ;; modificamos el vector del ambiente con el procedimiento ya hecho
+                      (make-result proc recursive-env)))) ;; Devolvemos el closure de la funcion y el ambiente extendido creado que lo contiene a si mismo
 
       ; Estructuras de ciclos
 
@@ -182,18 +200,34 @@
 
       ;; todo el tema de manejo algebraico. No está terminado, asi que lo deje como dummies por ahora xd
       (symbol-exp (id)
-                  (make-result id env))
+                  (if (env-has-binding? env id)
+                      (eopl:error 'eval-expression
+                                  "Cannot declare symbol ~s: identifier is already bound"
+                                  id)
+                      (let ((sym (math-symbol id)))
+                        (make-result
+                         sym
+                         (extend-env (list id) (list (direct-target sym)) env)))) )
       
       (simplify-exp (expr)
                     (let ((res (eval-expression expr env)))
-                      ;; ok buddy
-                      res))
+                      (let ((v (result-val res)) (env2 (result-env res)))
+                        (if (symbolic-expval? v)
+                            (make-result (simplify-symbolic v) env2)
+                            (eopl:error 'simplify-exp
+                                        "simplificar expects a symbolic expression, got: ~s"
+                                        v)))))
       
       (evaluate-exp (expr bindings)
                     (let ((res (eval-expression expr env)))
-                      ;; ok buddy don't do nothing lol
-                      ;; TODO: hay que manejar bien ese temita de las listas de bindings cuando vamos a evaluar
-                      res))
+                      (let ((v (result-val res)) (env2 (result-env res)))
+                        (if (symbolic-expval? v)
+                            (let ((bindings-res (eval-evaluate-bindings bindings env2)))
+                              (let ((bindings-alist (result-val bindings-res)) (env3 (result-env bindings-res)))
+                                (make-result (evaluate-symbolic v bindings-alist) env3)))
+                            (eopl:error 'evaluate-exp
+                                        "evaluar expects a symbolic expression, got: ~s"
+                                        v)))))
       
       ;; Por si nos pasa alguito
       (else (eopl:error 'eval-expression "Expression case not yet implemented: ~s" exp)))))
@@ -261,6 +295,19 @@
                         (let ((val-res (eval-expression value-exp env2)))
                           (make-result (cons key-val (result-val val-res)) (result-env val-res)))
                         (eopl:error 'eval-dict-pair "Dictionary keys must evaluate to strings or numbers, got: ~s" key-val))))))))
+
+;; evalua la lista de bindings de evaluar y devuelve una alist de symbol -> expval
+(define eval-evaluate-bindings
+  (lambda (bindings env)
+    (let loop ((bs bindings) (acc '()) (env-curr env))
+      (if (null? bs)
+          (make-result (reverse acc) env-curr)
+          (cases binding (car bs)
+            (binding-exp (id expr)
+              (let ((res (eval-expression expr env-curr)))
+                (loop (cdr bs)
+                      (cons (cons id (result-val res)) acc)
+                      (result-env res)))))))))
 
 ;; Evaluador de operandos para primitivas (no hay reference wrapping)
 (define eval-primapp-exp-rands

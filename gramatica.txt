@@ -172,7 +172,30 @@ var* y = x -> ve que "x" es un indirect-target de por sí, entonces hace un bypa
 
 Los negativos están especificados en la gramatica y no fallan gracias a que usamos todo con notacion prefija wiiii.
 
-EJEMPLOS DE LA GRAMATICA
+Implementado el nuevo sistema para evaluacion de expresiones algebraicas y sus nuevos añadidos al interpretador: 
+
+tipo symbol
+tipo symbolic exp
+primitiva simplificar
+primitiva evaluar
+
+practicamente todo el codigo relacionado con este procedimiento está en el nuevo archivo mathflow-algebraic. Me tomé la libertad de añadir algunas nuevas reglas de simplificacion sencillas a las que ya estaban en el proyecto.
+
+Añadidos bastante casos de prueba en el archivo mathflow-tests.scm. 
+
+EJEMPLOS DE PROGRAMA CON EXPRESIONES SIMBOLICAS
+
+"
+begin
+  symbol s;
+  symbol t;
+  var x = evaluar(+(s,*(t,2)), h=2, t=3);
+  var* y = x;
+  print(y)
+end
+" => +(2,*(y,2))
+
+EJEMPLOS DE PROGRAMA
 
 no los habia querido poner aun porque sabia que iba a tener que realizar cambios, pero no han sido tantos. Por ahora el lenguaje funciona de esta manera:
 

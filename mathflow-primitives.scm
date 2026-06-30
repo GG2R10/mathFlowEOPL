@@ -5,21 +5,57 @@
 
 ; primitivas
 
+(define symbolic-args?
+  (lambda (args)
+    (let loop ((xs args))
+      (if (null? xs)
+          #f
+          (or (symbolic-expval? (car xs))
+              (loop (cdr xs)))))))
+
+(define ensure-non-symbolic-args
+  (lambda (who args)
+    (if (symbolic-args? args)
+        (eopl:error who
+                    "Operation does not support symbolic operands: ~s"
+                    args)
+        #t)))
+
+(define display-expval
+  (lambda (v)
+    (if (symbolic-expval? v)
+        (display (expval->symbolic-string v))
+        (display v))))
+
 (define apply-primitive
   (lambda (prim args)
     (cases primitive prim
       ;; aritmeticas
-      (add-prim () (+ (car args) (cadr args)))
-      (subtract-prim () (- (car args) (cadr args)))  
-      (mult-prim () (* (car args) (cadr args)))
-      (div-prim () (/ (car args) (cadr args)))
+      (add-prim ()
+        (if (symbolic-args? args)
+            (symbolic-exp '+ (car args) (cadr args))
+            (+ (car args) (cadr args))))
+      (subtract-prim ()
+        (if (symbolic-args? args)
+            (symbolic-exp '- (car args) (cadr args))
+            (- (car args) (cadr args))))
+      (mult-prim ()
+        (if (symbolic-args? args)
+            (symbolic-exp '* (car args) (cadr args))
+            (* (car args) (cadr args))))
+      (div-prim ()
+        (if (symbolic-args? args)
+            (symbolic-exp '/ (car args) (cadr args))
+            (/ (car args) (cadr args))))
       
       (mod-prim ()
-        (let ((lhs (car args))
-              (rhs (cadr args)))
-          (if (and (integer-valued? lhs) (integer-valued? rhs))
-              (modulo lhs rhs)
-              (eopl:error 'mod-prim "mod expects integer operands, got ~s and ~s" lhs rhs))))
+        (if (symbolic-args? args)
+            (symbolic-exp '% (car args) (cadr args))
+            (let ((lhs (car args))
+                  (rhs (cadr args)))
+              (if (and (integer-valued? lhs) (integer-valued? rhs))
+                  (modulo lhs rhs)
+                  (eopl:error 'mod-prim "mod expects integer operands, got ~s and ~s" lhs rhs)))))
 
       (incr-prim () (+ (car args) 1))
       (decr-prim () (- (car args) 1))
@@ -29,15 +65,15 @@
       (strcat-prim () (string-append (car args) (cadr args)))
       
       ;; booleanos
-      (lt-prim () (< (car args) (cadr args)))
-      (gt-prim () (> (car args) (cadr args)))
-      (le-prim () (<= (car args) (cadr args)))
-      (ge-prim () (>= (car args) (cadr args)))
-      (eq-prim () (equal? (car args) (cadr args)))  
-      (ne-prim () (not (equal? (car args) (cadr args))))
-      (and-prim () (and (car args) (cadr args)))
-      (or-prim () (or (car args) (cadr args)))
-      (not-prim () (not (car args)))
+      (lt-prim () (begin (ensure-non-symbolic-args 'lt-prim args) (< (car args) (cadr args))))
+      (gt-prim () (begin (ensure-non-symbolic-args 'gt-prim args) (> (car args) (cadr args))))
+      (le-prim () (begin (ensure-non-symbolic-args 'le-prim args) (<= (car args) (cadr args))))
+      (ge-prim () (begin (ensure-non-symbolic-args 'ge-prim args) (>= (car args) (cadr args))))
+      (eq-prim () (begin (ensure-non-symbolic-args 'eq-prim args) (equal? (car args) (cadr args))))  
+      (ne-prim () (begin (ensure-non-symbolic-args 'ne-prim args) (not (equal? (car args) (cadr args)))))
+      (and-prim () (begin (ensure-non-symbolic-args 'and-prim args) (and (car args) (cadr args))))
+      (or-prim () (begin (ensure-non-symbolic-args 'or-prim args) (or (car args) (cadr args))))
+      (not-prim () (begin (ensure-non-symbolic-args 'not-prim args) (not (car args))))
       
       ;; listas usando el datatype `listval`
       (empty-list?-prim () (cases listval (car args)
@@ -132,7 +168,7 @@
       
       ;; print lol
       (print-prim ()
-                  (display (car args))
+                  (display-expval (car args))
                   (newline)
                   'null)
       

@@ -183,6 +183,149 @@ end
 "))       
 ;; => 45
 
+(display "=== MathFlow (expresiones simbolicas y simplificar / evaluar) ===")
+(newline)
+
+; Deberia de fallar porque ya hay un simbolo en el ambiente
+
+;(display (run "begin
+;  symbol simbolito;
+;  func simbolito() {print(\"Hola desde la funcion x\")}
+; end"))  
+
+(display (run "
+begin
+  symbol s;
+  var x = 10;
+  
+  var exp = +(x,15);
+  var exp2 = +(s, exp);
+
+  print(exp2)
+end
+")) ; => +(s,25)
+
+(display "=== Simplificar ===")
+(newline)
+
+;; +(-(s,2), 5) => +(s,3)
+(display (run "
+begin
+  symbol s;
+  var e1 = simplificar(+(-(s, 2), 5));
+  print(e1)
+end
+"))
+
+;; -(s,s) => 0
+(display (run "
+begin
+  symbol s;
+  var e2 = simplificar(-(s, s));
+  print(e2)
+end
+"))
+
+;; /(*(s,4),4) => s
+(display (run "
+begin
+  symbol s;
+  var e3 = simplificar(/(*(s, 4), 4));
+  print(e3)
+end
+"))
+
+;; *(s,0) => 0
+(display (run "
+begin
+  symbol s;
+  var e4 = simplificar(*(s, 0));
+  print(e4)
+end
+"))
+
+;; *(s,1) => s
+(display (run "
+begin
+  symbol s;
+  var e5 = simplificar(*(s, 1));
+  print(e5)
+end
+"))
+
+;; +(s,0) => s
+(display (run "
+begin
+  symbol s;
+  var e6 = simplificar(+(s, 0));
+  print(e6)
+end
+"))
+
+;; *(*(s,3),2) => *(s,6)
+(display (run "
+begin
+  symbol s;
+  var e7 = simplificar(*(*(s, 3), 2));
+  print(e7)
+end
+"))
+
+;; +(+(3,s),4) => +(s,7)
+(display (run "
+begin
+  symbol s;
+  var e8 = simplificar(+(+(3,s), 4));
+  print(e8)
+end
+"))
+
+;; -(+(s,5),5) => s
+(display (run "
+begin
+  symbol s;
+  var e9 = simplificar(-(+(s, 5), 5));
+  print(e9)
+end
+"))
+
+;; /(*(s,4),2) => *(s,2)
+(display (run "
+begin
+  symbol s;
+  var e9 = simplificar(/(*(s,4),2));
+  print(e9)
+end
+"))
+
+(display "=== Evaluar ===")
+(newline)
+
+(display (run "
+begin
+  symbol s;
+  evaluar(+(s,2), s=4)
+end
+")) ; => 6
+
+(display (run "
+begin
+  symbol s;
+  symbol t;
+  evaluar(+(s,*(t,2)), s=2)
+end
+")) ; => +(2,*(y,2))
+
+(display (run "
+begin
+  symbol s;
+  symbol t;
+  var x = evaluar(+(s,*(t,2)), h=2, t=3);
+  var* y = x;
+  print(y)
+end
+")) ; => +(2,*(y,2))
+
 (display "=== Casos Borde ===")
 (newline)
 
