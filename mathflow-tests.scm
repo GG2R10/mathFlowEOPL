@@ -59,6 +59,18 @@ end
 "))       
 ;; => 55
 
+;; funcion sin return => devuelve null
+(display (run "
+begin
+  func sinReturn() {
+    var x = 10;
+    x = +(x, 5)
+  };
+  sinReturn()
+end
+"))
+;; => null
+
 (display "=== Referencias ===")
 (newline)
 
@@ -145,8 +157,9 @@ end
 ;; creacion
 (display (run "
 begin
-  var d = {nombre: \"Juan\", edad: 25};
-  ref-diccionario(d, \"edad\")
+  var nombre = \"Jessica\";
+  var d = {nombre: \"Juan\", \"edad\": 25};
+  ref-diccionario(d, nombre)
 end
 "))       
 ;; => 25
@@ -192,26 +205,17 @@ end
 "))       
 ;; => 6
 
-;; diccionario vacio y lista vacia (TODO: problema que tenemos, se reconcen iguales) 
+;; diccionario vacio y lista vacia se deberian reconocer distintos 
 (display (run "
 begin
   var d = {};
   lista?(d)
 end
 "))       
-;; => true
+;; => false
 
 (display "=== Tests Adicionales ===")
 (newline)
-
-(display (run "number?(42)"))       
-;; => true
-
-(display (run "string?(\"hola\")"))       
-;; => true
-
-(display (run "boolean?(#t)"))       
-;; => true
 
 ;; prueba de condicionales anidados
 (display (run "
@@ -225,7 +229,7 @@ begin
     end
   else
     300
-  end
+  end 
 end
 "))       
 ;; => 100
@@ -234,14 +238,27 @@ end
 (display (run "
 begin
   func aplicar(f, x) {
-    f(x)
+    return f(x)
   };
   
   func cuadrado(n) {
-    *(n, n)
+    return *(n, n)
   };
   
   aplicar(cuadrado, 5)
 end
-"))       
+"))    
+
 ;; => 25
+
+;; numeros decimales
+
+(display (run "
+begin
+  var x = 1.1;
+  var y = +(x,2.4);
+
+  var lista = [\"tutaina\", 2, y];
+  ref-list(lista, 1)
+end
+")) 

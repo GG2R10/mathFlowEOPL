@@ -80,7 +80,7 @@
 
 
 <dict-pair> ::=
-    <identifier> ":" <expression> -> pair-exp
+    <expression> ":" <expression> -> pair-exp
 
 
 <primitive> ::=
@@ -140,9 +140,15 @@ var l = set-list(l, ..., ...)
 
 Al inicio implementé listas y diccionarios con identificadores en listas para reconocerse, siendo fiel al hecho de que las primitivas deberian de ser "cosas usadas del lenguaje original", pero despues me di cuenta de que era mucho mas organizado tenerlas como sus propios datatype asi que ahora estan implementadas así. 
 
+Los diccionarios al recibir identificadores me colapsaban con la evaluacion de primapp expressions, que primero evaluaban los rands (parametros). Ahora las claves reciben cualquier expresion y en la evaluacion de los pares se limita a resultados de numeros o strings. Hice esto en vez de identifiers para ser mas consistentes con cosas como las listas, que pueden contener funciones o incluso pedazos de codigo (ya que todas las expresiones devuelven un resultado en el lenguaje que se puede almacenar).
+
+Estan ahora implementados los numeros flotantes positivos y negativos en el scanner. Se detectan como numeros
+
 Todo está hecho por notacion prefija. Me parece complejo realizar notacion infija para las primitivas y el profesor nos permitio dejarlo por notacion infija :). 
 
 Para implementar las constantes ahora los ambientes tienen un nuevo tipo de target que cuando se intenta reemplazar devuelve error.
+
+Para evitar cosas como una llamada a list-index con un numero decimal, hay un nuevo predicado que detecta cuando un numero es un entero y se hace el checkeo en los respectivos tipos (como modulo, listas...)
 
 Las funciones para poder ser recursivas hacen un truco: 
 

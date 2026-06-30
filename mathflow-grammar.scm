@@ -13,6 +13,11 @@
      ("\"" (arbno (not #\")) "\"") string) ; Esto genera que nuestros strings sean "\"texto\"", los tenemos que sanear eliminando las comillas del principio y final
     (identifier
      (letter (arbno (or letter digit "?"))) symbol)
+    ;; números: enteros y flotantes, con opción de signo negativo
+    (number
+     (digit (arbno digit) "." digit (arbno digit)) number)
+    (number
+     ("-" digit (arbno digit) "." digit (arbno digit)) number)
     (number
      (digit (arbno digit)) number)
     (number
@@ -29,7 +34,6 @@
 ;; - binding/dict-pair utilizan no terminales separados en lugar de patrones en línea (limitación de SLLGEN con separated-list).
 
 (define grammar-simple-interpreter
-
     '((program (expression) a-program)
 
     ;; literales
@@ -53,9 +57,11 @@
     (expression ("if" expression "then" expression "else" expression "end") if-exp)
     (expression ("begin" expression (arbno ";" expression) "end") begin-exp)
     
-    ;; declaracion de funciones
-    (expression ("func" identifier "(" (separated-list identifier ",") ")" "{" (arbno expression ";") "return" expression "}")
+    ;; declaracion de funciones. Segun el proshecto hay que tener la forma de llamarla con return y sin return
+    (expression ("func" identifier "(" (separated-list identifier ",") ")" "{" (separated-list expression ";") func-return "}")
                 func-exp)
+    (func-return ("return" expression) func-return-exp)
+    (func-return () empty-return-exp)
     
     ;; agrupacion de expresiones
     (expression ("(" expression ")") group-exp)
@@ -73,7 +79,7 @@
     ;; data structures paaa
     (expression ("[" (separated-list expression ",") "]") list-exp)
     (expression ("{" (separated-list dict-pair ",") "}") dict-exp)
-    (dict-pair (identifier ":" expression) pair-exp)
+    (dict-pair (expression ":" expression) pair-exp)
     
     ;; expresiones especiales de evaluacion y simplificacion algebraica
     (expression ("symbol" identifier) symbol-exp)

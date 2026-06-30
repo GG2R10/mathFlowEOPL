@@ -13,7 +13,14 @@
       (subtract-prim () (- (car args) (cadr args)))  
       (mult-prim () (* (car args) (cadr args)))
       (div-prim () (/ (car args) (cadr args)))
-      (mod-prim () (modulo (car args) (cadr args)))
+      
+      (mod-prim ()
+        (let ((lhs (car args))
+              (rhs (cadr args)))
+          (if (and (integer-valued? lhs) (integer-valued? rhs))
+              (modulo lhs rhs)
+              (eopl:error 'mod-prim "mod expects integer operands, got ~s and ~s" lhs rhs))))
+
       (incr-prim () (+ (car args) 1))
       (decr-prim () (- (car args) 1))
       
@@ -32,91 +39,96 @@
       (or-prim () (or (car args) (cadr args)))
       (not-prim () (not (car args)))
       
-      ;; listas (hechas con el estilo racket de cons)
-      
-      ;; la lista vacia es el simbolo 'empty_list. Esto es para que tengamos distincion del tipo lista.
-      (empty-list?-prim () (eq? (car args) 'empty_list))
+      ;; listas usando el datatype `listval`
+      (empty-list?-prim () (cases listval (car args)
+                              (empty-list-val () #t)
+                              (list-cons (h t) #f)))
 
-      ;; crear-lista(elem, lst) = cons
-      (make-list-prim () (cons (car args) (cadr args)))
+      (make-list-prim () (list-cons (car args) (cadr args)))
 
-      ;; Una lista válida es un par o 'empty_list
-      (list?-prim () (let loop ((x (car args)))
-                      (cond ((eq? x 'empty_list) #t)
-                            ((pair? x) (loop (cdr x)))
-                            (else #f))))
+      (list?-prim () (listval? (car args)))
 
-      ;; cabeza = car
-      (head-prim () (if (pair? (car args))
-                        (car (car args))
-                        (eopl:error 'head-prim "Cannot take head of empty list")))
+      (head-prim () (cases listval (car args)
+                      (empty-list-val () (eopl:error 'head-prim "Cannot take head of empty list"))
+                      (list-cons (h t) h)))
 
-      ;; cola = cdr
-      (tail-prim () (if (pair? (car args))
-                        (cdr (car args))
-                        (eopl:error 'tail-prim "Cannot take tail of empty list")))
+      (tail-prim () (cases listval (car args)
+                      (empty-list-val () (eopl:error 'tail-prim "Cannot take tail of empty list"))
+                      (list-cons (h t) t)))
 
-      ;; append recorre la primera lista reconstruyéndola sobre la segunda
-      (append-prim () (let loop ((lst (car args)))
-                        (if (eq? lst 'empty_list)
-                            (cadr args)
-                            (cons (car lst) (loop (cdr lst))))))
+      (append-prim () (letrec ((loop (lambda (lst acc)
+                                      (cases listval lst
+                                        (empty-list-val () acc)
+                                        (list-cons (h t) (list-cons h (loop t acc)))))))
+                        (loop (car args) (cadr args))))
 
-      ;; ref-list recorre la lista hasta el índice
       (ref-list-prim () (let ((lst (car args)) (idx (cadr args)))
-                          (let loop ((l lst) (i 0))
-                            (cond ((eq? l 'empty_list) (eopl:error 'ref-list-prim "Index out of bounds: ~s" idx))
-                                  ((= i idx) (car l))
-                                  (else (loop (cdr l) (+ i 1)))))))
+                          (if (integer-valued? idx)
+                              (let loop ((l lst) (i 0))
+                                (cases listval l
+                                  (empty-list-val () (eopl:error 'ref-list-prim "Index out of bounds: ~s" idx))
+                                  (list-cons (h t) (if (= i idx) h (loop t (+ i 1))))))
+                              (eopl:error 'ref-list-prim "List index must be an integer, got ~s" idx))))
 
-      ;; set-list reconstruye la lista reemplazando el elemento en idx
       (set-list-prim () (let ((lst (car args)) (idx (cadr args)) (val (caddr args)))
-                          (let loop ((l lst) (i 0))
-                            (cond ((eq? l 'empty_list) (eopl:error 'set-list-prim "Index out of bounds: ~s" idx))
-                                  ((= i idx) (cons val (cdr l)))
-                                  (else (cons (car l) (loop (cdr l) (+ i 1))))))))
+                          (if (integer-valued? idx)
+                              (let loop ((l lst) (i 0))
+                                (cases listval l
+                                  (empty-list-val () (eopl:error 'set-list-prim "Index out of bounds: ~s" idx))
+                                  (list-cons (h t) (if (= i idx) (list-cons val t) (list-cons h (loop t (+ i 1)))))))
+                              (eopl:error 'set-list-prim "List index must be an integer, got ~s" idx))))
       
       ;; diccionarios
       (make-dict-prim ()
         (let loop ((remaining args) (acc '()))
           (if (null? remaining)
-              (cons 'dict (reverse acc))
+              (dict-val (reverse acc))
               (let ((key (car remaining)) (val (cadr remaining)))
-                (unless (string? key)
-                  (eopl:error 'make-dict-prim "Dictionary keys must be strings, got: ~s" key))
+                (unless (dict-key-value? key)
+                  (eopl:error 'make-dict-prim "Dictionary keys must be strings or numbers, got: ~s" key))
                 (loop (cddr remaining) (cons (cons key val) acc))))))
 
-      (dict?-prim ()
-        (let ((v (car args)))
-          (and (pair? v) (eq? (car v) 'dict))))
+      (dict?-prim () (dictval? (car args)))
 
       (ref-dict-prim ()
-        (let ((dict (cdr (car args))) (key (cadr args)))
-          (let loop ((pairs dict))
-            (cond ((null? pairs) 'null)
-                  ((equal? (caar pairs) key) (cdar pairs))
-                  (else (loop (cdr pairs)))))))
+        (let ((dict (car args)) (key (cadr args)))
+          (cases dictval dict
+            (dict-val (pairs)
+              (let loop ((ps pairs))
+                (cond ((null? ps) 'null)
+                      ((equal? (caar ps) key) (cdar ps))
+                      (else (loop (cdr ps)))))))))
 
       (set-dict-prim ()
         (let ((dict (car args)) (key (cadr args)) (val (caddr args)))
-          (let loop ((pairs (cdr dict)) (acc '()))
-            (cond ((null? pairs)
-                  (cons 'dict (reverse (cons (cons key val) acc))))
-                  ((equal? (caar pairs) key)
-                  (cons 'dict (append (reverse acc) (cons (cons key val) (cdr pairs)))))
-                  (else (loop (cdr pairs) (cons (car pairs) acc)))))))
+          (cases dictval dict
+            (dict-val (pairs)
+              (let loop ((ps pairs) (acc '()))
+                (cond ((null? ps)
+                       (dict-val (reverse (cons (cons key val) acc))))
+                      ((equal? (caar ps) key)
+                       (dict-val (append (reverse acc) (cons (cons key val) (cdr ps)))))
+                      (else (loop (cdr ps) (cons (car ps) acc)))))))))
 
       (keys-prim ()
-        (let loop ((pairs (cdr (car args))) (acc 'empty_list))
-          (if (null? pairs)
-              acc
-              (loop (cdr pairs) (cons (caar pairs) acc)))))
+        (let ((dict (car args)))
+          (cases dictval dict
+            (dict-val (pairs)
+              (letrec ((loop (lambda (ps acc)
+                                (if (null? ps)
+                                    acc
+                                    (loop (cdr ps) (list-cons (caar ps) acc))))))
+                (loop pairs (empty-list-val)))))))
 
       (values-prim ()
-        (let loop ((pairs (cdr (car args))) (acc 'empty_list))
-          (if (null? pairs)
-              acc
-              (loop (cdr pairs) (cons (cdar pairs) acc)))))
+        (let ((dict (car args)))
+          (cases dictval dict
+            (dict-val (pairs)
+              (letrec ((loop (lambda (ps acc)
+                                (if (null? ps)
+                                    acc
+                                    (loop (cdr ps) (list-cons (cdar ps) acc))))))
+                (loop pairs (empty-list-val)))))))
       
       ;; print lol
       (print-prim ()

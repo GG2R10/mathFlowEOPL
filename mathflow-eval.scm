@@ -17,7 +17,7 @@
       (true-exp () (make-result #t env))
       (false-exp () (make-result #f env))
       (null-exp () (make-result 'null env))
-      (empty-list-exp () (make-result 'empty_list env))
+      (empty-list-exp () (make-result (empty-list-val) env))
       
       ;; Declaracion de variables normales y constantes
       (var-decl-exp (id rhs)
@@ -101,6 +101,7 @@
                  (eval-expression exp env))
       
       ;; Bloques begin ... end. Hacemos un loop donde en cada paso se evalua una expresion de la lista de expresiones hasta que se acaba la lista de expresiones restantes. 
+      ;; Devuelven el resultado del ultimo elemento evaluado para que el return de las funciones funque :3
       (begin-exp (exp exps)
                  (let loop ((res (eval-expression exp env)) (exps exps))
                    (let ((env1 (result-env res)))
@@ -108,21 +109,17 @@
                          res
                          (loop (eval-expression (car exps) env1) (cdr exps))))))
       
-
-      
-      ;; declaracion de funciones
-      ;;(func-exp (name params body-exps return-exp)
-      ;;         (let* ((body (if (null? body-exps)
-      ;;                          return-exp 
-      ;;                          (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp))))) 
-      ;;                 (proc (closure params body env))) 
-      ;;            (let ((recursive-env (extend-env (list name) (list (direct-target proc)) env)))
-      ;;              (make-result proc recursive-env)))) 
-      
-      (func-exp (name params body-exps return-exp)
-                (let* ((body (if (null? body-exps)
-                                return-exp ;; Si el body era vacio, hacemos al body la expresion del return
-                                (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp))))) ;; Sino, lo hacemos el bloque de expreiones del body y return
+      ;; Funciones. Basicamente, crea un body que luego es wrappeado en un closure.
+      (func-exp (name params body-exps f-return)
+                (let* ((body (cases func-return f-return
+                               (func-return-exp (return-exp) ;; Si tenemos un return explicito, lo juntamos como la ultima instruccion en el body que es simplemente una begin-exp
+                                 (if (null? body-exps)
+                                     return-exp
+                                     (begin-exp (car body-exps) (append (cdr body-exps) (list return-exp)))))
+                               (empty-return-exp () ;; Juntamos una null-exp al final del body si no habia return
+                                 (if (null? body-exps)
+                                     (null-exp)
+                                     (begin-exp (car body-exps) (append (cdr body-exps) (list (null-exp))))))))
                       (vec (make-vector 1)) 
                       (recursive-env (extended-env-record (list name) vec env)) ;; creamos el ambiente recursivo antes del closure para que la funcion se pueda encontrar a si misma si usa recursion
                       (proc (closure params body recursive-env))) ;; proc = closure de la funcion creado
@@ -151,29 +148,29 @@
       (for-exp (id list-exp body-exp)
          (let ((list-res (eval-expression list-exp env)))
            (let ((list-val (result-val list-res)) (env1 (result-env list-res)))
-             (if (or (pair? list-val) (eq? list-val 'empty_list))
+             (if (listval? list-val)
                  (let loop ((lst list-val) (env-curr env1))
-                   (if (eq? lst 'empty_list)
-                       (make-result 'null env-curr)
-                       (let ((item (car lst)))
-                         (let ((body-env (extend-env (list id) (list (direct-target item)) env-curr)))
-                           (let ((body-res (eval-expression body-exp body-env)))
-                             (loop (cdr lst) (result-env body-res)))))))
+                   (cases listval lst
+                     (empty-list-val () (make-result 'null env-curr))
+                     (list-cons (item tail)
+                       (let ((body-env (extend-env (list id) (list (direct-target item)) env-curr)))
+                         (let ((body-res (eval-expression body-exp body-env)))
+                           (loop tail (result-env body-res)))))))
                  (eopl:error 'eval-expression "for expects a list, got ~s" list-val)))))
       
       ;; evaluacion de expresiones en una lista que devuelve la lista con los resultados evaluados y el nuevo ambiente despues de haberlo hecho
       (list-exp (exps)
-          (let loop ((es (reverse exps)) (acc 'empty_list) (env-curr env))
+          (let loop ((es (reverse exps)) (acc (empty-list-val)) (env-curr env))
             (if (null? es)
                 (make-result acc env-curr)
                 (let ((e-res (eval-expression (car es) env-curr)))
-                  (loop (cdr es) (cons (result-val e-res) acc) (result-env e-res))))))
+                  (loop (cdr es) (list-cons (result-val e-res) acc) (result-env e-res))))))
       
       ;; evaluacion de una expresion de diccionario que usa como auxiliar a eval-dict-pair para cada pareja :). Hace que la estructura de diccionario tenga como identificador 'dict al inicio.
       (dict-exp (pairs)
         (let loop ((ps pairs) (acc '()) (env-curr env))
           (if (null? ps)
-              (make-result (cons 'dict (reverse acc)) env-curr)
+              (make-result (dict-val (reverse acc)) env-curr)
               (let ((pair-res (eval-dict-pair (car ps) env-curr)))
                 (loop (cdr ps) (cons (result-val pair-res) acc) (result-env pair-res))))))
       
@@ -257,9 +254,13 @@
 (define eval-dict-pair
   (lambda (pair env)
     (cases dict-pair pair
-      (pair-exp (key-id value-exp)
-                (let ((val-res (eval-expression value-exp env)))
-                  (make-result (cons (symbol->string key-id) (result-val val-res)) (result-env val-res)))))))
+      (pair-exp (key value-exp)
+                (let ((key-res (eval-expression key env)))
+                  (let ((key-val (result-val key-res)) (env2 (result-env key-res)))
+                    (if (dict-key-value? key-val)
+                        (let ((val-res (eval-expression value-exp env2)))
+                          (make-result (cons key-val (result-val val-res)) (result-env val-res)))
+                        (eopl:error 'eval-dict-pair "Dictionary keys must evaluate to strings or numbers, got: ~s" key-val))))))))
 
 ;; Evaluador de operandos para primitivas (no hay reference wrapping)
 (define eval-primapp-exp-rands

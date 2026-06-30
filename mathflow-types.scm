@@ -11,8 +11,18 @@
       (string? x)
       (symbol? x)         ; null represented as 'null
       (procval? x)
-      (list? x)           ; empty lists
-      (pair? x)))         ; for dict pairs
+      (listval? x)        ; our list datatype
+      (dictval? x)))      ; our dict datatype
+
+;; claves permitidas en diccionarios ya evaluados
+(define (dict-key-value? x)
+  (or (string? x)
+      (number? x)))
+
+;; enteros del lenguaje: se usa para validar operaciones que deben recibir enteros
+(define (integer-valued? x)
+  (and (number? x)
+       (integer? x)))
 
 ;; target: reconocedor de tipo almacenado para las referencias mutables
 ;; usado por el environment para almacenar valores o referencias a valores (solo hay un nivel de profundidad de referencias).
@@ -57,6 +67,15 @@
    (ids (list-of symbol?))
    (body expression?)
    (env environment?)))
+
+;; listval: representacion de listas del lenguaje (no usar pair? ni list? de racket)
+(define-datatype listval listval?
+  (empty-list-val)
+  (list-cons (head expval?) (tail listval?)))
+
+;; dictval: representacion de diccionarios como lista de parejas (key . value)
+(define-datatype dictval dictval?
+  (dict-val (pairs (list-of pair?))))
 
 ;; mini funciones auxiliares para hacer los pares de (resultado ambiente) que se usan en la evaluacion de expresiones y declaraciones
 (define make-result (lambda (v e) (cons v e)))
