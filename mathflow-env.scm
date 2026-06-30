@@ -143,15 +143,10 @@
         ((pred (car ls)) n)
         (else (loop (cdr ls) (+ n 1)))))))
 
-;; nombre para ambiente inicial. Tiene algunos direct targets creados
+;; nombre para ambiente inicial. Antes tenia algunos direct-targets creados. Ahora está vacio
 (define init-env
   (lambda ()
-    (extend-env
-     '(x y z)
-     (list (direct-target 1)
-           (direct-target 5)
-           (direct-target 10))
-     (empty-env))))
+    (empty-env)))
 
 ;; El export para los otros modulos
 (provide

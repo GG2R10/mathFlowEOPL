@@ -110,10 +110,6 @@
                       (eval-expression true-exp env2) ; Si v era verdadero, devolvemos la evaluacion de la true exp
                       (eval-expression false-exp env2))))) ; Sino, devolvemos la evalacion de la false y el ambiente resultante
       
-      ;; agrupación de expresiones. 
-      (group-exp (exp)
-                 (eval-expression exp env))
-      
       ;; Bloques begin ... end. Hacemos un loop donde en cada paso se evalua una expresion de la lista de expresiones hasta que se acaba la lista de expresiones restantes. 
       ;; Devuelven el resultado del ultimo elemento evaluado para que el return de las funciones funque :3
       (begin-exp (exp exps)
@@ -143,6 +139,26 @@
                           (proc (closure params body recursive-env))) ;; proc = closure de la funcion creado
                       (vector-set! vec 0 (direct-target proc)) ;; modificamos el vector del ambiente con el procedimiento ya hecho
                       (make-result proc recursive-env)))) ;; Devolvemos el closure de la funcion y el ambiente extendido creado que lo contiene a si mismo
+
+      ;; call-exp. Creada por un intento de implementacion de objetos usando funciones con estado.
+      ;; Antes habia que si o si usar un identificador para poder llamar una funcion. 
+      ;; Ahora podemos usar esta forma para evaluar una expresion que devuelve una funcion anonima
+      (call-exp (func-expr rands)
+        (let ((res (eval-expression func-expr env)))
+          (let ((proc (result-val res)) (env2 (result-env res)))
+            (if (procval? proc)
+                (let ((rands-res (eval-rands rands env2)))
+                  (let ((args (result-val rands-res)) (env3 (result-env rands-res)))
+                    (apply-procedure proc args env3)))
+
+                ;; Si lo que devolvio la expresion no era un procedimiento entonces lanzamos error
+                (eopl:error 'eval-expression "Attempt to call non-procedure ~s" func-expr)
+            )
+          )
+        )
+      )
+                
+      
 
       ; Estructuras de ciclos
 

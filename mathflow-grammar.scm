@@ -63,14 +63,16 @@
     (func-return ("return" expression) func-return-exp)
     (func-return () empty-return-exp)
     
-    ;; agrupacion de expresiones
-    (expression ("(" expression ")") group-exp)
-    (expression ("ref" identifier) ref-exp)
-    
+    ;; Call para funciones. Nos permite llamar a una expresion que devuelva una funcion
+    (expression ("(" expression ")" "(" (separated-list expression ",") ")") call-exp)
+
     ;; declaraciones. En nuestro lenguaje expanden directamente el ambiente apenas son evaluadas
     (expression ("var*" identifier "=" identifier) var-ref-decl-exp) ;; creacion de puntero / alias
     (expression ("var" identifier "=" expression) var-decl-exp)
     (expression ("const" identifier "=" expression) const-decl-exp)
+
+    ;; referencias en funciones
+    (expression ("ref" identifier) ref-exp)
     
     ;; estructuras de ciclos
     (expression ("while" expression "do" expression "done") while-exp)

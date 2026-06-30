@@ -405,3 +405,29 @@ begin
   ref-list(lista, 1)
 end
 ")) (newline)
+
+;; alcance lexico con funciones
+(run "begin
+
+var x = 1;
+
+func pruebaalcanceambientes(){
+    var x = 2;
+    x = 3;
+    print(x)  
+};
+
+pruebaalcanceambientes();
+print(x);
+
+print(\"Esto funciona bien porque nuestro ambiente se ejecuta sobre su propia copia del anterior, pero el retorno extiende al ambiente del caller.\");
+print(\"Pero si hicieramos una asignacion, si cambiara a x\");
+
+func pruebaalcanceambientes2(){
+    x = 99
+};
+
+pruebaalcanceambientes2();
+print(x)
+
+end")

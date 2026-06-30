@@ -5,7 +5,7 @@
 
 ; primitivas
 
-; auxiliar para la funcion auxliar de abajo.
+; auxiliar para la funcion auxliar de abajo y para saber si en las primitivas tenemos una expresion normal o simbolica.
 ; devuelve false si todos los elementos son algo diferente a expresiones simbolicas. 
 (define symbolic-args?
   (lambda (args)
@@ -82,54 +82,90 @@
       (not-prim () (begin (ensure-non-symbolic-args 'not-prim args) (not (car args))))
       
       ;; listas usando el datatype `listval`
+
+      ; intuitivo.
       (empty-list?-prim () (cases listval (car args)
                               (empty-list-val () #t)
                               (list-cons (h t) #f)))
 
+      ;; intuitivo.
       (make-list-prim () (list-cons (car args) (cadr args)))
 
+      ;; intuitivo.
       (list?-prim () (listval? (car args)))
 
+      ;; si es vacia error. Si tenia cosas simplemente sacamos la cabeza. 
       (head-prim () (cases listval (car args)
                       (empty-list-val () (eopl:error 'head-prim "Cannot take head of empty list"))
                       (list-cons (h t) h)))
 
+      ;; mismo de arriba, pero sacamos la cola ahora. 
       (tail-prim () (cases listval (car args)
                       (empty-list-val () (eopl:error 'tail-prim "Cannot take tail of empty list"))
                       (list-cons (h t) t)))
 
-      (append-prim () (letrec ((loop (lambda (lst acc)
-                                      (cases listval lst
-                                        (empty-list-val () acc)
-                                        (list-cons (h t) (list-cons h (loop t acc)))))))
-                        (loop (car args) (cadr args))))
+      ;; creamos un bucle con la primera lista y la segunda.
+      ;; si la primera lista estaba vacia, devolvemos la segunda
+      ;; si la primera lista tenia cosas, la vamos recreando
+      ;; por ende, cuando se termine de rehacer la primera lista y se quede vacia, al final le agregaremos la segunda lista.
+      ;; cabe aclarar que esto crea una nueva lista con la primera y segunda, no modifica ninguna de las anteriores. 
+      (append-prim () 
+        (letrec (
+          (loop (lambda (lst acc)
+            (cases listval lst
+              (empty-list-val () acc)
+              (list-cons (h t) (list-cons h (loop t acc)))))))
 
-      (ref-list-prim () (let ((lst (car args)) (idx (cadr args)))
-                          (if (integer-valued? idx)
-                              (let loop ((l lst) (i 0))
-                                (cases listval l
-                                  (empty-list-val () (eopl:error 'ref-list-prim "Index out of bounds: ~s" idx))
-                                  (list-cons (h t) (if (= i idx) h (loop t (+ i 1))))))
-                              (eopl:error 'ref-list-prim "List index must be an integer, got ~s" idx))))
+          (loop (car args) (cadr args))))
 
-      (set-list-prim () (let ((lst (car args)) (idx (cadr args)) (val (caddr args)))
-                          (if (integer-valued? idx)
-                              (let loop ((l lst) (i 0))
-                                (cases listval l
-                                  (empty-list-val () (eopl:error 'set-list-prim "Index out of bounds: ~s" idx))
-                                  (list-cons (h t) (if (= i idx) (list-cons val t) (list-cons h (loop t (+ i 1)))))))
-                              (eopl:error 'set-list-prim "List index must be an integer, got ~s" idx))))
+      ;; vamos iterando por un ciclo de contar y buscar en la tail hasta que lleguemos al indice que nos pasaron.
+      ;; Si existia devolvemos el valor.  
+      (ref-list-prim () 
+        (let ((lst (car args)) (idx (cadr args)))
+          (if (integer-valued? idx)
+              (let loop ((l lst) (i 0))
+                (cases listval l
+
+                  (empty-list-val () 
+                    (eopl:error 'ref-list-prim "Index out of bounds: ~s" idx))
+
+                  (list-cons (h t) 
+                    (if (= i idx) h (loop t (+ i 1))))))
+
+              ;; Si nos pasaron un indice no entero sacamos error
+              (eopl:error 'ref-list-prim "List index must be an integer, got ~s" idx))))
+
+      ;; misma logica que el anterior, pero ahora en vez de devolver el valor, devolvemos una nueva lista con
+      ;; el valor reemplazando al head original. 
+      (set-list-prim () 
+        (let ((lst (car args)) (idx (cadr args)) (val (caddr args)))
+
+          (if (integer-valued? idx)
+
+              (let loop ((l lst) (i 0))
+                (cases listval l
+                  (empty-list-val () (eopl:error 'set-list-prim "Index out of bounds: ~s" idx))
+                  (list-cons (h t) (if (= i idx) (list-cons val t) (list-cons h (loop t (+ i 1)))))))
+
+              (eopl:error 'set-list-prim "List index must be an integer, got ~s" idx))))
       
-      ;; diccionarios
+      ;; DICCIONARIOS
+
+      ;; intuitivo.
       (make-dict-prim ()
         (let loop ((remaining args) (acc '()))
           (if (null? remaining)
-              (dict-val (reverse acc))
+              
+              (dict-val (reverse acc)) ;; si ya no quedan dict-vals para evaluar, invertimos el acumulador para que quede bien ordenado
+
+              ; sino, entonces obtenemos key - value
+              ; si la key no es string / numero lanzamos error. Sino, entonces seguimos construyendo el dic con (cons (key value) acc)
               (let ((key (car remaining)) (val (cadr remaining)))
                 (unless (dict-key-value? key)
                   (eopl:error 'make-dict-prim "Dictionary keys must be strings or numbers, got: ~s" key))
                 (loop (cddr remaining) (cons (cons key val) acc))))))
 
+      ;; checkea si es el datatype
       (dict?-prim () (dictval? (car args)))
 
       (ref-dict-prim ()
@@ -156,28 +192,32 @@
         (let ((dict (car args)))
           (cases dictval dict
             (dict-val (pairs)
-              (letrec ((loop (lambda (ps acc)
-                                (if (null? ps)
-                                    acc
-                                    (loop (cdr ps) (list-cons (caar ps) acc))))))
+              (letrec 
+                ((loop (lambda (ps acc)
+                  (if (null? ps)
+                      acc
+                      (loop (cdr ps) (list-cons (caar ps) acc))))))
+
                 (loop pairs (empty-list-val)))))))
 
       (values-prim ()
         (let ((dict (car args)))
           (cases dictval dict
             (dict-val (pairs)
-              (letrec ((loop (lambda (ps acc)
-                                (if (null? ps)
-                                    acc
-                                    (loop (cdr ps) (list-cons (cdar ps) acc))))))
+              (letrec 
+                ((loop (lambda (ps acc)
+                  (if (null? ps)
+                    acc
+                    (loop (cdr ps) (list-cons (cdar ps) acc))))))
+
                 (loop pairs (empty-list-val)))))))
       
       ;; print lol
       (print-prim ()
-                  (display-expval (car args))
-                  (newline)
-                  'null)
-      
+        (display-expval (car args))
+        (newline)
+        'null)
+
       ;; por si las moscas
       (else (eopl:error 'apply-primitive "Unknown primitive ~s" prim)))))
 
