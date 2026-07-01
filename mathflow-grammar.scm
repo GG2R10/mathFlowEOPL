@@ -55,7 +55,11 @@
     
     ;; estructuras de control
     (expression ("if" expression "then" expression "else" expression "end") if-exp)
-    (expression ("begin" expression (arbno ";" expression) "end") begin-exp)
+    (expression ("begin" expression (arbno ";" expression) "end") begin-exp)  
+
+    ;; nueva estructura de control: Switch 
+    (expression ("switch" expression "{" (arbno case-clause) "default" "{" (separated-list expression ";") "}" "}") switch-exp)
+    (case-clause ("case" expression "{" (separated-list expression ";") "}") case-clause-exp) 
     
     ;; declaracion de funciones. Segun el proshecto hay que tener la forma de llamarla con return y sin return
     (expression ("func" identifier "(" (separated-list identifier ",") ")" "{" (separated-list expression ";") func-return "}")
@@ -63,7 +67,7 @@
     (func-return ("return" expression) func-return-exp)
     (func-return () empty-return-exp)
     
-    ;; Call para funciones. Nos permite llamar a una expresion que devuelva una funcion
+    ;; Call para funciones. Nos permite llamar a una funcion devuelta por una expresion
     (expression ("(" expression ")" "(" (separated-list expression ",") ")") call-exp)
 
     ;; declaraciones. En nuestro lenguaje expanden directamente el ambiente apenas son evaluadas

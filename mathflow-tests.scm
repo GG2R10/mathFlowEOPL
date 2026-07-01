@@ -432,7 +432,29 @@ print(x)
 
 end")
 
+(run "begin
+
+  func hola(){
+    print(\"Hola\")
+  };
+  
+  var x = 1;
+
+  func switchtest(y){
+    switch y {
+      case 1 {print(\"Caso 1\")}
+      case 2 {hola}
+      default {print(\"Caso default\")}
+    }
+  };
+
+  switchtest(x)
+
+end")
+
 ; simulacion de objetos por medio de funciones con estado
+; Anotacion random: El problema de realizar esto (ademas de practicidad) es que copiamos constantemente todas las clausulas o funciones
+; por cada objeto que creamos. Muy poco optimo. 
 (run "begin
 func Persona(nomb, ed){
     var edad = ed;
@@ -452,15 +474,53 @@ func Persona(nomb, ed){
 
     func setNombre(nuevoNombre) {
         nombre = nuevoNombre
+    };
+
+    func dispatch(metodo) {
+        print(metodo)
+        
+        return switch metodo {
+            case \"getNombre\" {getNombre}
+            case \"getEdad\" {getEdad}
+            case \"setEdad\" {setEdad}
+            case \"setNombre\" {setNombre}
+            default { print(\"Metodo no encontrado\") }
+        }
     }
 
-    return {\"getNombre\": getNombre, \"getEdad\": getEdad, \"setEdad\": setEdad, \"setNombre\": setNombre}
+    return dispatch 
+};
+
+func Estudiante(nom, ed, cod, car){
+
+  var codigo = cod;
+  var carrera = car;
+  var persona = Persona(nom, ed);
+
+  func getCodigo() {
+      return codigo
+  };
+
+  func getCarrera() {
+      return carrera
+  };
+
+  func dispatch(metodo) {
+      return switch metodo {
+          case \"getCodigo\" {getCodigo}
+          case \"getCarrera\" {getCarrera}
+          default { persona(metodo) }
+      }
+  }
+
+  return dispatch
 };
 
 var p = Persona(\"Juan\", 30);
+print((p(\"getNombre\"))());
 
-print((ref-diccionario(p, \"getNombre\"))());
-(ref-diccionario(p, \"setNombre\"))(\"Peter\");
-print((ref-diccionario(p, \"getNombre\"))())
+var e = Estudiante(\"Maria\", 20, \"12345\", \"Ingenieria\");
+print((e(\"getNombre\"))());
+print((e(\"getCarrera\"))())
 
 end")

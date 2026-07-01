@@ -21,6 +21,12 @@
   (or (string? x)
       (number? x)))
 
+(define (switch-case-value? x)
+  (or (number? x)
+      (string? x)
+      (boolean? x)
+      (symbol? x)))
+
 ;; enteros del lenguaje: se usa para validar operaciones que deben recibir enteros
 (define (integer-valued? x)
   (and (number? x)
@@ -96,10 +102,13 @@
 (define result-env cdr)
 
 ;; utilidades para algebra simbolica
+
+; verifica si un valor es un simbolo o una expresion simbolica
 (define (symbolic-expval? v)
   (or (symval? v)
       (symexpr? v)))
 
+; convierte una expresion simbolica o un simbolo a un string para imprimirlo 
 (define expval->symbolic-string
   (lambda (v)
     (cond

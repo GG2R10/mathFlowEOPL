@@ -119,6 +119,28 @@
                          res
                          (loop (eval-expression (car exps) env1) (cdr exps))))))
       
+      ;; Switch expression
+      ;; Tiene un limitante: Los cases pueden intentar matchear cualquier tipo de valor que no necesariamente sea el mismo que el test.
+      (switch-exp (test-exp case-exps default-body)
+        (let ((res (eval-expression test-exp env)))
+          (let ((test-res (result-val res)) (env2 (result-env res)))
+            (if (switch-case-value? test-res)
+                (let loop ((cases-list case-exps) (env-curr env2))
+                  (if (null? cases-list)
+                      (eval-expression (make-body-exp default-body) env-curr)
+
+                      (cases case-clause (car cases-list)
+                        (case-clause-exp (match-exp body-exps)
+                          (let ((match-res (eval-expression match-exp env-curr)))
+                            (let ((match-val (result-val match-res)) (env3 (result-env match-res)))
+                              (if (equal? test-res match-val)
+                                  (eval-expression (make-body-exp body-exps) env3)
+                                  (loop (cdr cases-list) env3))))))))
+
+                (eopl:error 'eval-expression
+                            "switch expects a number, string, boolean or symbol, got: ~s"
+                            test-res)))))
+
       ;; Funciones. Basicamente, crea un body que luego es wrappeado en un closure.
       (func-exp (name params body-exps f-return)
                 (if (env-has-symbolic-binding? env name)
@@ -157,8 +179,6 @@
           )
         )
       )
-                
-      
 
       ; Estructuras de ciclos
 
@@ -310,6 +330,7 @@
                     (if (dict-key-value? key-val)
                         (let ((val-res (eval-expression value-exp env2)))
                           (make-result (cons key-val (result-val val-res)) (result-env val-res)))
+
                         (eopl:error 'eval-dict-pair "Dictionary keys must evaluate to strings or numbers, got: ~s" key-val))))))))
 
 ;; evalua la lista de bindings de evaluar y devuelve una alist de symbol -> expval
@@ -354,6 +375,13 @@
 (define sanitize-string
   (lambda (s)
     (substring s 1 (- (string-length s) 1))))
+
+;; auxiliar para switch. Construye begin-exps con las expresiones dentro de los cases y default
+(define make-body-exp
+  (lambda (exps)
+    (if (null? (cdr exps))
+        (car exps)
+        (begin-exp (car exps) (cdr exps)))))
 
 ;; Export para los demas modulos (el main y test solamente)
 (provide
