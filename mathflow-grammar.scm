@@ -98,7 +98,7 @@
     (primitive ("-") subtract-prim) 
     (primitive ("*") mult-prim)
     (primitive ("/") div-prim)
-    (primitive ("%") mod-prim)
+    (primitive ("mod") mod-prim)
     (primitive ("add1") incr-prim)
     (primitive ("sub1") decr-prim)
     (primitive ("longitud") strlen-prim)

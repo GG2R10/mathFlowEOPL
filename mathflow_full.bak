@@ -98,7 +98,7 @@
     (primitive ("-") subtract-prim) 
     (primitive ("*") mult-prim)
     (primitive ("/") div-prim)
-    (primitive ("mod") mod-prim)
+    (primitive ("%") mod-prim)
     (primitive ("add1") incr-prim)
     (primitive ("sub1") decr-prim)
     (primitive ("longitud") strlen-prim)
@@ -482,16 +482,8 @@
                   (modulo lhs rhs)
                   (eopl:error 'mod-prim "mod expects integer operands, got ~s and ~s" lhs rhs)))))
 
-      (incr-prim ()
-        (let ((arg (car args)))
-          (if (symbolic-expval? arg)
-              (symbolic-exp '+ arg 1)
-              (+ arg 1))))
-      (decr-prim ()
-        (let ((arg (car args)))
-          (if (symbolic-expval? arg)
-              (symbolic-exp '- arg 1)
-              (- arg 1))))
+      (incr-prim () (+ (car args) 1))
+      (decr-prim () (- (car args) 1))
       
       ;; operaciones sobre strings
       (strlen-prim () (string-length (car args)))

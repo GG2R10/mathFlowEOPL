@@ -63,8 +63,16 @@
                   (modulo lhs rhs)
                   (eopl:error 'mod-prim "mod expects integer operands, got ~s and ~s" lhs rhs)))))
 
-      (incr-prim () (+ (car args) 1))
-      (decr-prim () (- (car args) 1))
+      (incr-prim ()
+        (let ((arg (car args)))
+          (if (symbolic-expval? arg)
+              (symbolic-exp '+ arg 1)
+              (+ arg 1))))
+      (decr-prim ()
+        (let ((arg (car args)))
+          (if (symbolic-expval? arg)
+              (symbolic-exp '- arg 1)
+              (- arg 1))))
       
       ;; operaciones sobre strings
       (strlen-prim () (string-length (car args)))

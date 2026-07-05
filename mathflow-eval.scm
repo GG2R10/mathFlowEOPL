@@ -134,7 +134,9 @@
                           (let ((match-res (eval-expression match-exp env-curr)))
                             (let ((match-val (result-val match-res)) (env3 (result-env match-res)))
                               (if (equal? test-res match-val)
+                                  
                                   (eval-expression (make-body-exp body-exps) env3)
+
                                   (loop (cdr cases-list) env3))))))))
 
                 (eopl:error 'eval-expression
